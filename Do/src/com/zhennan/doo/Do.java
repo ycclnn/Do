@@ -14,7 +14,13 @@ import java.util.Scanner;
  *
  */
 public class Do {
+	//static error for lexer or parser. Ex.  "(" without ")"
 	static boolean hadError = false;
+	//dynamic error for interpreter. Ex. "a" - "b"
+	 static boolean hadRuntimeError = false;
+	 //static and final, because we want to track the state and value of identifiers
+	 //when the interpreter stores global variables. Those variables should persist throughout the REPL session.
+	 private static final Interpreter interpreter = new Interpreter();
 	/**
 	 * @param args
 	 */
@@ -38,6 +44,12 @@ public class Do {
 		if (hadError) {
 			System.exit(65);
 		}
+		//if read a file, exit directly
+		//if read in a REPL, continue
+		if (hadRuntimeError) {
+			System.exit(70);
+		}
+		
 	}
 
 	private static void runPrompt() throws IOException {
@@ -56,11 +68,13 @@ public class Do {
 	private static void run(String source) {
 		Lexer scanner = new Lexer(source);
 		List<Token> tokens = scanner.scanTokens();
+		System.out.println(tokens.toString());
+		Parser parser = new Parser(tokens);
+	    Expr expression = parser.parse();
 
-		// For now, just print the tokens.
-		for (Token token : tokens) {
-			System.out.println(token);
-		}
+	    // Stop if there was a syntax error.
+	    if (hadError) return;
+	    interpreter.interpret(expression);
 	}
 
 	static void error(int line, String message) {
@@ -71,5 +85,17 @@ public class Do {
 		System.err.println("[line " + line + "] Error" + where + ": " + message);
 		hadError = true;
 	}
+	static void error(Token token, String message) {
+	    if (token.type == TokenType.EOF) {
+	      report(token.line, " at end", message);
+	    } else {
+	      report(token.line, " at '" + token.lexeme + "'", message);
+	    }
+	  }
+	static void runtimeError(RuntimeError error) {
+	    System.err.println(error.getMessage() +
+	        "\n[line " + error.token.line + "]");
+	    hadRuntimeError = true;
+	  }
 
 }
