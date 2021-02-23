@@ -1,3 +1,2 @@
-var beverage = "espresso";
-a =2; c;
-print beverage; 
+var a = "global a";
+while(a) print "caonima";

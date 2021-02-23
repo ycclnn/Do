@@ -26,6 +26,23 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 	private Object evaluate(Expr expr) {
 		return expr.accept(this);
 	}
+	
+	@Override
+	  public Void visitWhileStmt(Stmt.While stmt) {
+	    while (isTruthy(evaluate(stmt.condition))) {
+	      execute(stmt.body);
+	    }
+	    return null;
+	  }
+	@Override
+	  public Void visitIfStmt(Stmt.If stmt) {
+	    if (isTruthy(evaluate(stmt.condition))) {
+	      execute(stmt.thenBranch);
+	    } else if (stmt.elseBranch != null) {
+	      execute(stmt.elseBranch);
+	    }
+	    return null;
+	  }
 
 	@Override
 	public Void visitBlockStmt(Stmt.Block stmt) {
@@ -36,12 +53,15 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 	void executeBlock(List<Stmt> statements, Environment environment) {
 		Environment previous = this.environment;
 		try {
+			//这行实现了environment的串联， 层层向下
 			this.environment = environment;
-
+			//右边的environment属于block最里的，此时可以往上找enclosing
+			
 			for (Stmt statement : statements) {
 				execute(statement);
 			}
 		} finally {
+			//block执行完， environment退回初始
 			this.environment = previous;
 		}
 	}
@@ -50,7 +70,7 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 	@Override
 	public Void visitExpressionStmt(Stmt.Expression stmt) {
 		Object value = evaluate(stmt.expression);
-		System.out.println(stringify(value));
+		System.out.println("hehe"+stringify(value));
 		return null;
 	}
 
@@ -88,18 +108,33 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
 		return object.toString();
 	}
+	 @Override
+	  public Object visitLogicalExpr(Expr.Logical expr) {
+	    Object left = evaluate(expr.left);
 
+	    if (expr.operator.type == TokenType.OR) {
+	      if (isTruthy(left)) return left;
+	    } else {
+	      if (!isTruthy(left)) return left;
+	    }
+
+	    //left is known to be true here, now check right part is truthy or not
+	    return evaluate(expr.right);
+	  }
 	// visit a assign expression
 	@Override
 	public Object visitAssignExpr(Expr.Assign expr) {
 		Object value = evaluate(expr.value);
+		//先尝试assign给当前scope， 如果找不到key，继续向上。如果都找不到，报错runtimeerror
 		environment.assign(expr.name, value);
 		return value;
 	}
 
 	// visit a variable / identifier
+	
 	@Override
 	public Object visitVariableExpr(Expr.Variable expr) {
+		//从当前scope开始找key一直向上，最后找不到则报错。
 		return environment.get(expr.name);
 	}
 

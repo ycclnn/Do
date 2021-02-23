@@ -16,13 +16,14 @@ class Parser {
 		this.tokens = tokens;
 	}
 
-//	Expr parse() {
-//		try {
-//			return expression();
-//		} catch (ParseError error) {
-//			return null;
-//		}
-//	}
+	//	Expr parse() {
+	//		try {
+	//			return expression();
+	//		} catch (ParseError error) {
+	//			return null;
+	//		}
+	//	}
+	//parse result is a list of statement
 	List<Stmt> parse() {
 		List<Stmt> statements = new ArrayList<>();
 		while (!isAtEnd()) {
@@ -61,13 +62,43 @@ class Parser {
 	}
 
 	private Stmt statement() {
-		if (match(PRINT))
+		if (match(PRINT)) {
 			return printStatement();
-		if (match(LEFT_BRACE))
+		}
+		if (match(IF)) {
+			return ifStatement();
+		}
+		if (match(WHILE)) {
+			return whileStatement();
+		}
+		if (match(LEFT_BRACE)) {
 			return new Stmt.Block(block());
+		}
 		return expressionStatement();
 	}
+	 private Stmt whileStatement() {
+		    consume(LEFT_PAREN, "Expect '(' after 'while'.");
+		    Expr condition = expression();
+		    consume(RIGHT_PAREN, "Expect ')' after condition.");
+		    Stmt body = statement();
 
+		    return new Stmt.While(condition, body);
+		  }
+	private Stmt ifStatement() {
+		consume(LEFT_PAREN, "Expect '(' after 'if'.");
+		Expr condition = expression();
+		consume(RIGHT_PAREN, "Expect ')' after if condition."); 
+
+		//match block
+		Stmt thenBranch = statement();
+		Stmt elseBranch = null;
+		if (match(ELSE)) {
+			//match block
+			elseBranch = statement();
+		}
+
+		return new Stmt.If(condition, thenBranch, elseBranch);
+	}
 	private List<Stmt> block() {
 		List<Stmt> statements = new ArrayList<>();
 
@@ -96,8 +127,9 @@ class Parser {
 	}
 
 	private Expr assignment() {
-		Expr expr = equality();
 
+		//Expr expr = equality();
+		Expr expr = or();
 		// here is different than binary operation. Because assignment
 		// is right associative
 		if (match(EQUAL)) {
@@ -110,6 +142,30 @@ class Parser {
 			}
 
 			error(equals, "Invalid assignment target.");
+		}
+
+		return expr;
+	}
+	private Expr or() {
+		Expr expr = and();
+
+
+		//while here meaning it's left associative
+		while (match(OR)) {
+			Token operator = previous();
+			Expr right = and();
+			expr = new Expr.Logical(expr, operator, right);
+		}
+
+		return expr;
+	}
+	private Expr and() {
+		Expr expr = equality();
+		//while here meaning it's left associative
+		while (match(AND)) {
+			Token operator = previous();
+			Expr right = equality();
+			expr = new Expr.Logical(expr, operator, right);
 		}
 
 		return expr;
@@ -288,7 +344,7 @@ class Parser {
 		while (!isAtEnd()) {
 			switch (peek().type) {
 			case SEMICOLON:
-//				System.out.println("semi in synchro");
+				//				System.out.println("semi in synchro");
 				advance();
 				return;
 			case CLASS:
