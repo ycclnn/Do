@@ -1,16 +1,77 @@
 package com.zhennan.doo;
 
-class Interpreter implements Expr.Visitor<Object> {
+import java.util.List;
+
+import com.zhennan.doo.Expr.Variable;
+
+class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
+	private Environment environment = new Environment();
 
 	// interpret 入口
-	void interpret(Expr expression) {
+	void interpret(List<Stmt> statements) {
 		try {
-			Object value = evaluate(expression);
-			
-			System.out.println(stringify(value));
+			for (Stmt statement : statements) {
+				execute(statement);
+			}
 		} catch (RuntimeError error) {
 			Do.runtimeError(error);
 		}
+	}
+
+	private void execute(Stmt stmt) {
+		stmt.accept(this);
+	}
+
+	// let an expression to be evaluated by this interpreter.
+	private Object evaluate(Expr expr) {
+		return expr.accept(this);
+	}
+
+	@Override
+	public Void visitBlockStmt(Stmt.Block stmt) {
+		executeBlock(stmt.statements, new Environment(environment));
+		return null;
+	}
+
+	void executeBlock(List<Stmt> statements, Environment environment) {
+		Environment previous = this.environment;
+		try {
+			this.environment = environment;
+
+			for (Stmt statement : statements) {
+				execute(statement);
+			}
+		} finally {
+			this.environment = previous;
+		}
+	}
+
+	// 区别expression的是没有return type
+	@Override
+	public Void visitExpressionStmt(Stmt.Expression stmt) {
+		Object value = evaluate(stmt.expression);
+		System.out.println(stringify(value));
+		return null;
+	}
+
+	@Override
+	public Void visitPrintStmt(Stmt.Print stmt) {
+		Object value = evaluate(stmt.expression);
+		System.out.println(stringify(value));
+		return null;
+	}
+
+	@Override
+	public Void visitVarStmt(Stmt.Var stmt) {
+		Object value = null;
+		if (stmt.initializer != null) {
+			value = evaluate(stmt.initializer);
+		}
+
+		environment.define(stmt.name.lexeme, value);
+
+		// no stringify because assignment doesnt require print anything
+		return null;
 	}
 
 	private String stringify(Object object) {
@@ -24,8 +85,22 @@ class Interpreter implements Expr.Visitor<Object> {
 			}
 			return text;
 		}
-		
+
 		return object.toString();
+	}
+
+	// visit a assign expression
+	@Override
+	public Object visitAssignExpr(Expr.Assign expr) {
+		Object value = evaluate(expr.value);
+		environment.assign(expr.name, value);
+		return value;
+	}
+
+	// visit a variable / identifier
+	@Override
+	public Object visitVariableExpr(Expr.Variable expr) {
+		return environment.get(expr.name);
 	}
 
 	@Override
@@ -141,8 +216,4 @@ class Interpreter implements Expr.Visitor<Object> {
 		return true;
 	}
 
-	// let an expression to be evaluated by this interpreter.
-	private Object evaluate(Expr expr) {
-		return expr.accept(this);
-	}
 }
