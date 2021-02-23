@@ -34,7 +34,10 @@ class Parser {
 	}
 
 	private Stmt declaration() {
-		try {
+		try { 
+			if (match(FUN)) {
+				return function("function");
+			}
 			if (match(VAR)) {
 				return varDeclaration();
 			} else {
@@ -46,7 +49,56 @@ class Parser {
 			return null;
 		}
 	}
+	//define a function, no arguments but identifier (param name)
+	 private Stmt.Function function(String kind) {
+		    Token name = consume(IDENTIFIER, "Expect " + kind + " name.");
+		    consume(LEFT_PAREN, "Expect '(' after " + kind + " name.");
+		    List<Token> parameters = new ArrayList<>();
+		    if (!check(RIGHT_PAREN)) {
+		      do {
+		        if (parameters.size() >= 255) {
+		          error(peek(), "Can't have more than 255 parameters.");
+		        }
 
+		        parameters.add(
+		            consume(IDENTIFIER, "Expect parameter name."));
+		      } while (match(COMMA));
+		    }
+		    consume(RIGHT_PAREN, "Expect ')' after parameters.");
+		    consume(LEFT_BRACE, "Expect '{' before " + kind + " body.");
+		    List<Stmt> body = block();
+		    return new Stmt.Function(name, parameters, body);
+	}
+//	 private Expr call() {
+//			Expr expr = primary();
+//
+//			while (true) { 
+//				if (match(LEFT_PAREN)) {
+//					expr = finishCall(expr);
+//				} else {
+//					break;
+//				}
+//			}
+//
+//			return expr;
+//		}
+	 //call with real arguments: which is expression
+	 private Expr finishCall(Expr callee) {
+			List<Expr> arguments = new ArrayList<>();
+			if (!check(RIGHT_PAREN)) {
+				do {
+					if (arguments.size() >= 255) {
+						error(peek(), "Can't have more than 255 arguments.");
+					}
+					arguments.add(expression());
+				} while (match(COMMA));
+			}
+
+			Token paren = consume(RIGHT_PAREN,
+					"Expect ')' after arguments.");
+
+			return new Expr.Call(callee, paren, arguments);
+		}
 	// declare a variable
 	// var could be null if no = found
 	private Stmt varDeclaration() {
@@ -60,8 +112,21 @@ class Parser {
 		consume(SEMICOLON, "Expect ';' after variable declaration.");
 		return new Stmt.Var(name, initializer);
 	}
+	 private Stmt returnStatement() {
+		    Token keyword = previous();
+		    Expr value = null;
+		    if (!check(SEMICOLON)) {
+		      value = expression();
+		    }
+
+		    consume(SEMICOLON, "Expect ';' after return value.");
+		    return new Stmt.Return(keyword, value);
+		  }
 
 	private Stmt statement() {
+		if (match(RETURN)) {
+			return returnStatement();
+		}
 		if (match(PRINT)) {
 			return printStatement();
 		}
@@ -76,14 +141,14 @@ class Parser {
 		}
 		return expressionStatement();
 	}
-	 private Stmt whileStatement() {
-		    consume(LEFT_PAREN, "Expect '(' after 'while'.");
-		    Expr condition = expression();
-		    consume(RIGHT_PAREN, "Expect ')' after condition.");
-		    Stmt body = statement();
+	private Stmt whileStatement() {
+		consume(LEFT_PAREN, "Expect '(' after 'while'.");
+		Expr condition = expression();
+		consume(RIGHT_PAREN, "Expect ')' after condition.");
+		Stmt body = statement();
 
-		    return new Stmt.While(condition, body);
-		  }
+		return new Stmt.While(condition, body);
+	}
 	private Stmt ifStatement() {
 		consume(LEFT_PAREN, "Expect '(' after 'if'.");
 		Expr condition = expression();
@@ -253,9 +318,23 @@ class Parser {
 			return new Expr.Unary(operator, right);
 		}
 
-		return primary();
-	}
+		return call();
 
+	}
+	private Expr call() {
+		Expr expr = primary();
+
+		while (true) { 
+			if (match(LEFT_PAREN)) {
+				expr = finishCall(expr);
+			} else {
+				break;
+			}
+		}
+
+		return expr;
+	}
+	
 	// primary ¡ú NUMBER | STRING | "true" | "false" | "nil"
 	// | "(" expression ")" ;
 	private Expr primary() {

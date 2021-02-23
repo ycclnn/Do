@@ -19,16 +19,20 @@ public class GenerateAst {
 				"Logical  : Expr left, Token operator, Expr right",
 				"Grouping : Expr expression", 
 				"Literal  : Object value", 
+				"Call     : Expr callee, Token paren, List<Expr> arguments",
 				"Unary    : Token operator, Expr right",
 				"Variable : Token name"));
 		defineAst(outputDir, "Stmt", Arrays.asList(
 				"Block      : List<Stmt> statements",
 				"If         : Expr condition, Stmt thenBranch," +
 						" Stmt elseBranch",
-						"While      : Expr condition, Stmt body",
-						"Expression : Expr expression",
-						"Print      : Expr expression",
-						"Var        : Token name, Expr initializer"
+						"Function   : Token name, List<Token> params," +
+								" List<Stmt> body",
+								"Return     : Token keyword, Expr value",
+								"While      : Expr condition, Stmt body",
+								"Expression : Expr expression",
+								"Print      : Expr expression",
+								"Var        : Token name, Expr initializer"
 				));
 	}
 
@@ -84,8 +88,7 @@ public class GenerateAst {
 		writer.println();
 		writer.println("    @Override");
 		writer.println("    <R> R accept(Visitor<R> visitor) {");
-		writer.println("      return visitor.visit" +
-				className + baseName + "(this);");
+		writer.println("      return visitor.visit" + className + baseName + "(this);");
 		writer.println("    }");
 		// Fields.
 		writer.println();

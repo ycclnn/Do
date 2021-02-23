@@ -3,10 +3,28 @@ package com.zhennan.doo;
 import java.util.List;
 
 import com.zhennan.doo.Expr.Variable;
+import java.util.ArrayList;
 
 class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
-	private Environment environment = new Environment();
+	//new globals field holds a fixed reference to the outermost global environment.
+	final Environment globals = new Environment();
+	private Environment environment = globals;
+	
+	Interpreter() {
+	    globals.define("clock", new Callable() {
+	      @Override
+	      public int arity() { return 0; }
 
+	      @Override
+	      public Object call(Interpreter interpreter,
+	                         List<Object> arguments) {
+	        return (double)System.currentTimeMillis() / 1000.0;
+	      }
+
+	      @Override
+	      public String toString() { return "<native fn>"; }
+	    });
+	  }
 	// interpret 入口
 	void interpret(List<Stmt> statements) {
 		try {
@@ -27,22 +45,29 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 		return expr.accept(this);
 	}
 	
+	
 	@Override
-	  public Void visitWhileStmt(Stmt.While stmt) {
-	    while (isTruthy(evaluate(stmt.condition))) {
-	      execute(stmt.body);
-	    }
+	  public Void visitFunctionStmt(Stmt.Function stmt) {
+	    Function function = new Function(stmt);
+	    environment.define(stmt.name.lexeme, function);
 	    return null;
 	  }
 	@Override
-	  public Void visitIfStmt(Stmt.If stmt) {
-	    if (isTruthy(evaluate(stmt.condition))) {
-	      execute(stmt.thenBranch);
-	    } else if (stmt.elseBranch != null) {
-	      execute(stmt.elseBranch);
-	    }
-	    return null;
-	  }
+	public Void visitWhileStmt(Stmt.While stmt) {
+		while (isTruthy(evaluate(stmt.condition))) {
+			execute(stmt.body);
+		}
+		return null;
+	}
+	@Override
+	public Void visitIfStmt(Stmt.If stmt) {
+		if (isTruthy(evaluate(stmt.condition))) {
+			execute(stmt.thenBranch);
+		} else if (stmt.elseBranch != null) {
+			execute(stmt.elseBranch);
+		}
+		return null;
+	}
 
 	@Override
 	public Void visitBlockStmt(Stmt.Block stmt) {
@@ -56,7 +81,7 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 			//这行实现了environment的串联， 层层向下
 			this.environment = environment;
 			//右边的environment属于block最里的，此时可以往上找enclosing
-			
+
 			for (Stmt statement : statements) {
 				execute(statement);
 			}
@@ -70,7 +95,7 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 	@Override
 	public Void visitExpressionStmt(Stmt.Expression stmt) {
 		Object value = evaluate(stmt.expression);
-		System.out.println("hehe"+stringify(value));
+		System.out.println(""+stringify(value));
 		return null;
 	}
 
@@ -93,6 +118,15 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 		// no stringify because assignment doesnt require print anything
 		return null;
 	}
+	  @Override
+	  public Void visitReturnStmt(Stmt.Return stmt) {
+	    Object value = null;
+	    if (stmt.value != null) value = evaluate(stmt.value);
+
+	    throw new Return(value);
+	  }
+	  
+	  
 
 	private String stringify(Object object) {
 		if (object == null)
@@ -108,19 +142,44 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
 		return object.toString();
 	}
-	 @Override
-	  public Object visitLogicalExpr(Expr.Logical expr) {
-	    Object left = evaluate(expr.left);
 
-	    if (expr.operator.type == TokenType.OR) {
-	      if (isTruthy(left)) return left;
-	    } else {
-	      if (!isTruthy(left)) return left;
-	    }
+	@Override
+	public Object visitCallExpr(Expr.Call expr) {
+		
+		//get the function by identifier
+		Object callee = evaluate(expr.callee);
 
-	    //left is known to be true here, now check right part is truthy or not
-	    return evaluate(expr.right);
-	  }
+		List<Object> arguments = new ArrayList<>();
+		for (Expr argument : expr.arguments) { 
+			arguments.add(evaluate(argument));
+		}
+		//if not callable function, output error message
+		if (!(callee instanceof Callable)) {
+			throw new RuntimeError(expr.paren,
+					"Can only call functions and classes.");
+		}
+		Callable function = (Callable)callee;
+		if (arguments.size() != function.arity()) {
+			throw new RuntimeError(expr.paren, "Expected " +
+					function.arity() + " arguments but your input has " +
+					arguments.size() + ".");
+		}
+		return function.call(this, arguments);
+	}
+
+	@Override
+	public Object visitLogicalExpr(Expr.Logical expr) {
+		Object left = evaluate(expr.left);
+
+		if (expr.operator.type == TokenType.OR) {
+			if (isTruthy(left)) return left;
+		} else {
+			if (!isTruthy(left)) return left;
+		}
+
+		//left is known to be true here, now check right part is truthy or not
+		return evaluate(expr.right);
+	}
 	// visit a assign expression
 	@Override
 	public Object visitAssignExpr(Expr.Assign expr) {
@@ -131,7 +190,7 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 	}
 
 	// visit a variable / identifier
-	
+
 	@Override
 	public Object visitVariableExpr(Expr.Variable expr) {
 		//从当前scope开始找key一直向上，最后找不到则报错。
