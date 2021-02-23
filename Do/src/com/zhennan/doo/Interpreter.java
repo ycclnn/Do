@@ -1,9 +1,11 @@
 package com.zhennan.doo;
 
 import java.util.List;
+import java.util.Map;
 
 import com.zhennan.doo.Expr.Variable;
 import java.util.ArrayList;
+import java.util.HashMap;
 
 class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 	//new globals field holds a fixed reference to the outermost global environment.
@@ -44,11 +46,26 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 	private Object evaluate(Expr expr) {
 		return expr.accept(this);
 	}
-	
+	@Override
+	  public Void visitClassStmt(Stmt.Class stmt) {
+	    environment.define(stmt.name.lexeme, null);
+	    Map<String, Function> methods = new HashMap<>();
+	    for (Stmt.Function method : stmt.methods) {
+	      Function function = new Function(method, environment);
+	      methods.put(method.name.lexeme, function);
+	    }
+
+	    DoClass klass = new DoClass(stmt.name.lexeme, methods);
+	    environment.assign(stmt.name, klass);
+	    
+	    //executeBlock(stmt.methods, new Environment(environment));
+		return null;
+	  }
 	
 	@Override
 	  public Void visitFunctionStmt(Stmt.Function stmt) {
-	    Function function = new Function(stmt);
+		//nested closure environment
+	    Function function = new Function(stmt, environment);
 	    environment.define(stmt.name.lexeme, function);
 	    return null;
 	  }
@@ -142,7 +159,29 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
 		return object.toString();
 	}
+	@Override
+	  public Object visitGetExpr(Expr.Get expr) {
+	    Object object = evaluate(expr.object);
+	    if (object instanceof Instance) {
+	      return ((Instance) object).get(expr.name);
+	    }
 
+	    throw new RuntimeError(expr.name,
+	        "Only instances have properties.");
+	  }
+	@Override
+	  public Object visitSetExpr(Expr.Set expr) {
+	    Object object = evaluate(expr.object);
+
+	    if (!(object instanceof Instance)) { 
+	      throw new RuntimeError(expr.name,
+	                             "Only instances have fields.");
+	    }
+
+	    Object value = evaluate(expr.value);
+	    ((Instance)object).set(expr.name, value);
+	    return value;
+	  }
 	@Override
 	public Object visitCallExpr(Expr.Call expr) {
 		

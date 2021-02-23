@@ -4,8 +4,11 @@ import java.util.List;
 
 class Function implements Callable {
 	private final Stmt.Function declaration;
-
-	Function(Stmt.Function declaration) {
+	private final Environment closure;
+	
+	
+	 Function(Stmt.Function declaration, Environment closure) {
+		this.closure = closure;
 		this.declaration = declaration;
 	}
 	@Override
@@ -15,7 +18,8 @@ class Function implements Callable {
 	 @Override
 	  public Object call(Interpreter interpreter,
 	                     List<Object> arguments) {
-	    Environment environment = new Environment(interpreter.globals);
+		 //chain the environment for function closure
+	    Environment environment = new Environment(closure);
 	    for (int i = 0; i < declaration.params.size(); i++) {
 	    	//connect parameter variables with their real arguments, put pairs into environment
 	      environment.define(declaration.params.get(i).lexeme,
