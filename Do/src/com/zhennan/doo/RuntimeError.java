@@ -1,5 +1,6 @@
 package com.zhennan.doo;
 
+@SuppressWarnings("serial")
 class RuntimeError extends RuntimeException {
 	final Token token;
 

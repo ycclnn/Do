@@ -2,8 +2,6 @@ package com.zhennan.doo;
 
 import java.util.List;
 import java.util.Map;
-
-import com.zhennan.doo.Expr.Variable;
 import java.util.ArrayList;
 import java.util.HashMap;
 
@@ -24,9 +22,10 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 	      }
 
 	      @Override
-	      public String toString() { return "<native fn>"; }
+	      public String toString() { return "built in function -- clock"; }
 	    });
 	  }
+	
 	// interpret 入口
 	void interpret(List<Stmt> statements) {
 		try {
@@ -37,15 +36,20 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 			Do.runtimeError(error);
 		}
 	}
-
+	
+	// let an statement to be executed/visited by this interpreter.
 	private void execute(Stmt stmt) {
 		stmt.accept(this);
 	}
 
-	// let an expression to be evaluated by this interpreter.
+	// let an expression to be evaluated/visited by this interpreter.
 	private Object evaluate(Expr expr) {
 		return expr.accept(this);
 	}
+	
+	
+	
+	
 	@Override
 	  public Void visitClassStmt(Stmt.Class stmt) {
 	    environment.define(stmt.name.lexeme, null);
@@ -57,8 +61,7 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
 	    DoClass klass = new DoClass(stmt.name.lexeme, methods);
 	    environment.assign(stmt.name, klass);
-	    
-	    //executeBlock(stmt.methods, new Environment(environment));
+	  
 		return null;
 	  }
 	
@@ -89,6 +92,7 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 	@Override
 	public Void visitBlockStmt(Stmt.Block stmt) {
 		executeBlock(stmt.statements, new Environment(environment));
+
 		return null;
 	}
 
@@ -103,7 +107,7 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 				execute(statement);
 			}
 		} finally {
-			//block执行完， environment退回初始
+			//block执行完， environment退回初始, destroy scope
 			this.environment = previous;
 		}
 	}
@@ -112,7 +116,7 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 	@Override
 	public Void visitExpressionStmt(Stmt.Expression stmt) {
 		Object value = evaluate(stmt.expression);
-		System.out.println(""+stringify(value));
+		System.out.println(stringify(value));
 		return null;
 	}
 
@@ -184,8 +188,9 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 	  }
 	@Override
 	public Object visitCallExpr(Expr.Call expr) {
-		
+		//System.out.print("called");
 		//get the function by identifier
+		//could be function or class
 		Object callee = evaluate(expr.callee);
 
 		List<Object> arguments = new ArrayList<>();
@@ -292,6 +297,8 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 		case EQUAL_EQUAL:
 			checkNumberOperands(expr.operator, left, right);
 			return isEqual(left, right);
+		default:
+			break;
 		}
 
 		// Unreachable.
@@ -332,6 +339,8 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 		case MINUS:
 			checkNumberOperand(expr.operator, right);
 			return -(double) right;
+		default:
+			break;
 		}
 
 		// Unreachable.

@@ -6,6 +6,7 @@ import java.util.List;
 import static com.zhennan.doo.TokenType.*;
 
 class Parser {
+	@SuppressWarnings("serial")
 	private static class ParseError extends RuntimeException {
 	}
 
@@ -16,13 +17,7 @@ class Parser {
 		this.tokens = tokens;
 	}
 
-	// Expr parse() {
-	// try {
-	// return expression();
-	// } catch (ParseError error) {
-	// return null;
-	// }
-	// }
+
 	// parse result is a list of statement
 	List<Stmt> parse() {
 		List<Stmt> statements = new ArrayList<>();
@@ -53,12 +48,16 @@ class Parser {
 		}
 	}
 
+	
+	//declare a class
 	private Stmt classDeclaration() {
 		Token name = consume(IDENTIFIER, "Expect class name.");
 		consume(LEFT_BRACE, "Expect '{' before class body.");
 
 		List<Stmt.Function> methods = new ArrayList<>();
 		while (!check(RIGHT_BRACE) && !isAtEnd()) {
+			
+			//difference between fun and class method is class method do not have "fun" modifier.
 			methods.add(function("method"));
 			//methods.add(declaration());
 		}
@@ -75,8 +74,8 @@ class Parser {
 		List<Token> parameters = new ArrayList<>();
 		if (!check(RIGHT_PAREN)) {
 			do {
-				if (parameters.size() >= 255) {
-					error(peek(), "Can't have more than 255 parameters.");
+				if (parameters.size() >= 10) {
+					error(peek(), "Can't have more than 10 parameters.");
 				}
 
 				parameters.add(consume(IDENTIFIER, "Expect parameter name."));
@@ -435,7 +434,7 @@ class Parser {
 		return this.current;
 	}
 
-	// make the program go back to normal mode from panic mode
+	// make the program go back to normal mode from panic mode when encountered an error
 	private void synchronize() {
 		advance();
 
@@ -448,12 +447,13 @@ class Parser {
 			case CLASS:
 			case FUN:
 			case VAR:
-			case FOR:
 			case IF:
 			case WHILE:
 			case PRINT:
 			case RETURN:
 				return;
+			default:
+				break;
 			}
 
 			advance();

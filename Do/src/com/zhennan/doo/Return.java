@@ -1,5 +1,6 @@
 package com.zhennan.doo;
 
+@SuppressWarnings("serial")
 class Return extends RuntimeException {
 	final Object value;
 

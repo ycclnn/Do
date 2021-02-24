@@ -15,7 +15,7 @@ class DoClass implements Callable {
 	
 	@Override
 	public String toString() {
-		return name + "nimabi";
+		return "class name is"  + name;
 	}
 
 	@Override
