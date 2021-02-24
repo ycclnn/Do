@@ -5,6 +5,7 @@ import java.util.List;
 
 import static com.zhennan.doo.TokenType.*;
 
+//compiling parser
 class Parser {
 	@SuppressWarnings("serial")
 	private static class ParseError extends RuntimeException {
@@ -22,9 +23,12 @@ class Parser {
 	List<Stmt> parse() {
 		List<Stmt> statements = new ArrayList<>();
 		while (!isAtEnd()) {
-			statements.add(declaration());
+			
+			Stmt tem = declaration();
+			
+			statements.add(tem);
 		}
-
+	
 		return statements;
 	}
 
@@ -42,8 +46,7 @@ class Parser {
 				return statement();
 			}
 		} catch (ParseError error) {
-			// Do.error(peek(), "Your code has syntax error while compiling");
-			synchronize();
+			
 			return null;
 		}
 	}
@@ -213,6 +216,8 @@ class Parser {
 			if (expr instanceof Expr.Variable) {
 				Token name = ((Expr.Variable) expr).name;
 				return new Expr.Assign(name, value);
+				
+				//set a class method
 			}else if (expr instanceof Expr.Get) {
 		        Expr.Get get = (Expr.Get)expr;
 		        return new Expr.Set(get.object, get.name, value);
@@ -284,17 +289,7 @@ class Parser {
 
 		return expr;
 	}
-	// expression ¡ú equality ;
-	// equality ¡ú comparison ( ( "!=" | "==" ) comparison )* ;
-	// comparison ¡ú term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
-	// term ¡ú factor ( ( "-" | "+" ) factor )* ;
-	// factor ¡ú unary ( ( "/" | "*" ) unary )* ;
-	// unary ¡ú ( "!" | "-" ) unary
-	// | primary ;
-	// primary ¡ú NUMBER | STRING | "true" | "false" | "nil"
-	// | "(" expression ")" ;
 
-	// term ¡ú factor ( ( "-" | "+" ) factor )* ;
 	private Expr term() {
 		// System.out.println("term");
 		Expr expr = factor();
@@ -344,6 +339,7 @@ class Parser {
 				expr = finishCall(expr);
 			} else if (match(DOT)) {
 				Token name = consume(IDENTIFIER, "Expect property name after '.'.");
+			
 				expr = new Expr.Get(expr, name);
 			} else {
 				break;
@@ -379,7 +375,7 @@ class Parser {
 	}
 
 	// consume current type, if type incorrect, report error
-	// then entering panic mode
+
 	private Token consume(TokenType type, String message) {
 		if (check(type))
 			return advance();
@@ -434,29 +430,5 @@ class Parser {
 		return this.current;
 	}
 
-	// make the program go back to normal mode from panic mode when encountered an error
-	private void synchronize() {
-		advance();
 
-		while (!isAtEnd()) {
-			switch (peek().type) {
-			case SEMICOLON:
-				// System.out.println("semi in synchro");
-				advance();
-				return;
-			case CLASS:
-			case FUN:
-			case VAR:
-			case IF:
-			case WHILE:
-			case PRINT:
-			case RETURN:
-				return;
-			default:
-				break;
-			}
-
-			advance();
-		}
-	}
 }

@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+//runtime error
 class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 	//new globals field holds a fixed reference to the outermost global environment.
 	final Environment globals = new Environment();
@@ -28,9 +29,13 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 	
 	// interpret Èë¿Ú
 	void interpret(List<Stmt> statements) {
+		
 		try {
+			
 			for (Stmt statement : statements) {
+				if (statement != null) {
 				execute(statement);
+				}
 			}
 		} catch (RuntimeError error) {
 			Do.runtimeError(error);
@@ -144,6 +149,7 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 	    Object value = null;
 	    if (stmt.value != null) value = evaluate(stmt.value);
 
+	    //treat return value as runtime exception
 	    throw new Return(value);
 	  }
 	  
